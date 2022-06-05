@@ -1,0 +1,113 @@
+# from __future__ import print_function
+import os
+from PIL import Image
+import numpy as np
+import pydicom
+import radiomics
+from radiomics import featureextractor
+from radiomics import imageoperations
+import SimpleITK as sitk
+
+import pandas as pd
+
+# mask = r""
+# image = r"D:\FYP\cleaned_database\SZH0405\P1.nrrd"
+# reader  = sitk.ImageFileReader()
+# reader.SetImageIO("NrrdImageIO")
+# reader.SetFileName(image)
+# image = reader.Execute()
+# mask = sitk.ReadImage(mask)
+# image = sitk.ReadImage(image)
+# mask = sitk.GetArrayFromImage(mask)
+# image = sitk.GetArrayFromImage(image)
+directory = r"D:\FYP\model\good"
+def mask_to_bounding_box(mask_image: sitk.Image, margin_size=5):
+  origin = mask_image.GetOrigin()
+  resolution = mask_image.GetSpacing()
+  size = mask_image.GetSize()
+  mask = sitk.GetArrayFromImage(mask_image)
+  coordinates = []
+  for i in range(3):
+    coordinates.append(np.arange(size[i]) * resolution[i] + origin[i])
+  boundary_index = np.array(
+    [[len(coordinates[2]) - 1, 0], [len(coordinates[1]) - 1, 0], [len(coordinates[0]) - 1, 0]])
+  for i in range(len(coordinates)):
+    for j in range(mask.shape[i]):
+      slice_included = np.any(np.take(mask, j, axis=i))
+      if slice_included:
+        if j < boundary_index[i, 0]:
+          boundary_index[i, 0] = j
+        if j > boundary_index[i, 1]:
+          boundary_index[i, 1] = j
+  mask_boundary = [[coordinates[0][boundary_index[2, 0]], coordinates[0][boundary_index[2, 1]]],
+                   [coordinates[1][boundary_index[1, 0]], coordinates[1][boundary_index[1, 1]]],
+                   [coordinates[2][boundary_index[0, 0]], coordinates[2][boundary_index[0, 1]]]]
+  for i in range(len(mask_boundary)):
+    mask_boundary[i][0] = max(mask_boundary[i][0], coordinates[i][0]) - margin_size
+    mask_boundary[i][1] = min(mask_boundary[i][1], coordinates[i][-1]) + margin_size
+  return mask_boundary
+def resample_image(itk_image, out_spacing=[1, 1, 1], is_label=False):
+  original_spacing = itk_image.GetSpacing()
+  original_size = itk_image.GetSize()
+  box = np.array(mask_to_bounding_box(itk_image,margin_size=10))
+  origin = box[:,0]
+  size = np.ceil(
+    (box[:, 1] - box[:,0]) / np.array(out_spacing)).flatten()
+  size = np.array(size, dtype='int').tolist()
+  resample = sitk.ResampleImageFilter()
+  resample.SetOutputSpacing(out_spacing)
+  resample.SetSize(size)
+  resample.SetOutputOrigin(origin)
+  resample.SetTransform(sitk.Transform())
+  resample.SetDefaultPixelValue(0)
+  if is_label:
+    resample.SetInterpolator(sitk.sitkNearestNeighbor)
+  else:
+    resample.SetInterpolator(sitk.sitkBSpline)
+  return resample.Execute(itk_image)
+settings = {}
+settings['binWidth'] = 25
+settings['resampledPixelSpacing'] = [1,1,1]  # [3,3,3] is an example for defining resampling (voxels with size 3x3x3mm)
+settings['interpolator'] = sitk.sitkBSpline
+# settings['label'] = 2
+extractor = featureextractor.RadiomicsFeatureExtractor(**settings)
+extractor.enableImageTypes(Wavelet={})
+extractor.enableAllFeatures()
+print("Calculating features")
+Excel = dict()
+for patient in os.listdir(directory):
+  name = patient
+  px_dir = os.path.join(directory, patient)
+  image_dir = None
+  masks_dir = []
+  print(patient)
+  # id = os.path.join(r"D:\FYP\model\test_crystal", name)
+  # os.makedirs(id)
+  # for folder in os.listdir(px_dir):
+  #   n = os.path.splitext(folder)[0]
+  #   img = sitk.ReadImage(os.path.join(px_dir,folder))
+  #   t = resample_image(img, is_label=True)
+  #   sitk.WriteImage(t, os.path.join(id, n + '_resampled.nrrd'))
+  for f in os.listdir(px_dir):
+    if f.startswith("P1_resampled"):
+      image_dir = os.path.join(px_dir, f)
+    elif f.startswith('AP'):
+      masks_dir.append(os.path.join(px_dir, f))
+
+  if image_dir is None:
+    print("no image for patient " +name)
+    continue
+  if len(masks_dir) < 3:
+    print("No enough masks for patient" + name)
+    continue
+
+  for mask in masks_dir:
+    featureVector = extractor.execute(image_dir, mask)
+    featureVector = pd.Series(featureVector)
+    featureVector.name = name
+    excel_name = os.path.splitext(os.path.basename(image_dir))[0] + "_" + os.path.splitext(os.path.basename(mask))[0]
+    if excel_name not in Excel:
+      Excel[excel_name] = list()
+    Excel[excel_name].append(featureVector)
+for name in Excel:
+  pd.concat(Excel[name], axis=1).to_csv(os.path.join(r"D:\FYP\f", name + ".csv"))
