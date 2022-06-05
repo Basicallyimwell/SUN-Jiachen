@@ -1,0 +1,448 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split, GridSearchCV, LeaveOneOut, StratifiedKFold
+from sklearn.feature_selection import VarianceThreshold, f_classif, SelectKBest, SelectFromModel, RFE
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+from yellowbrick.model_selection import RFECV
+from sklearn.linear_model import LogisticRegression, Lasso
+from sklearn.metrics import roc_auc_score, classification_report, roc_curve, confusion_matrix, brier_score_loss, plot_roc_curve
+from imblearn.over_sampling import RandomOverSampler
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import RidgeClassifier, SGDClassifier
+from sklearn.svm import LinearSVC, NuSVC, SVC
+from sklearn.tree import DecisionTreeClassifier, ExtraTreeClassifier
+from sklearn.pipeline import Pipeline
+import seaborn as sns
+from sklearn.calibration import calibration_curve, CalibratedClassifierCV
+import statsmodels.api as sm
+import pickle
+
+# train = pd.read_csv(r"Z:\Final_model_QEH\RD_noRT_7.5.csv")
+# test = pd.read_csv(r"Z:\FInal_model_QMH\RD_noRT_7.5.csv")
+# encoder = LabelEncoder()
+# train['Patient_ID'] = encoder.fit_transform(train['Patient_ID'])
+# test['Patient_ID'] = encoder.fit_transform(test['Patient_ID'])
+# X_train = pd.DataFrame(train.iloc[:, 1:-1])
+# y_train = pd.DataFrame(train.iloc[:, -1])
+# X_test = pd.DataFrame(test.iloc[:, 1:-1])
+# y_test = pd.DataFrame(test.iloc[:, -1])
+# Z_train = pd.DataFrame(train.iloc[:, 1:24])
+# Z_test = pd.DataFrame(test.iloc[:, 1:24])
+
+
+train = pd.read_csv(r"A:\FYP\ap_training_crystal.csv")
+test = pd.read_csv(r"A:\FYP\ap_testing_crystal.csv")
+
+train_pv = pd.read_csv(r"A:\FYP\pv_training_crystal.csv")
+test_pv = pd.read_csv(r"A:\FYP\pv_testing_crystal.csv")
+
+X_train = pd.DataFrame(train.iloc[:, 1:-1])
+y_train = pd.DataFrame(train.iloc[:, -1])
+X_test = pd.DataFrame(test.iloc[:, 1:-1])
+y_test = pd.DataFrame(test.iloc[:, -1])
+
+X_train_pv = pd.DataFrame(train_pv.iloc[:, 1:-1])
+y_train_pv = pd.DataFrame(train_pv.iloc[:, -1])
+X_test_pv = pd.DataFrame(test_pv.iloc[:, 1:-1])
+y_test_pv = pd.DataFrame(test_pv.iloc[:, -1])
+
+oversample = RandomOverSampler(sampling_strategy='minority', random_state=77)
+X_train, y_train = oversample.fit_resample(X_train, y_train)
+X_train_pv1, y_train_pv1 = oversample.fit_resample(X_train_pv, y_train_pv)
+xx
+# X_train = X_train[[
+#     'wavelet-LHL_firstorder_Minimum',
+#     'wavelet-LHH_gldm_LargeDependenceEmphasis',
+#     'wavelet-HHH_gldm_DependenceVariance',
+#     'wavelet-HLH_firstorder_Mean.2',
+#     'wavelet-HLH_firstorder_Median.2',
+#     'wavelet-HHL_firstorder_Minimum.2',
+#     'wavelet-HHL_gldm_LargeDependenceLowGrayLevelEmphasis.2',
+#     'wavelet-HHH_firstorder_10Percentile.2',
+#     'wavelet-HHH_firstorder_InterquartileRange.2',
+#     'wavelet-HHH_ngtdm_Busyness.2'
+# #
+# # ]]
+# X_test = X_test[[
+#     'wavelet-LHL_firstorder_Minimum',
+#     'wavelet-LHH_gldm_LargeDependenceEmphasis',
+#     'wavelet-HHH_gldm_DependenceVariance',
+#     'wavelet-HLH_firstorder_Mean.2',
+#     'wavelet-HLH_firstorder_Median.2',
+#     'wavelet-HHL_firstorder_Minimum.2',
+#     'wavelet-HHL_gldm_LargeDependenceLowGrayLevelEmphasis.2',
+#     'wavelet-HHH_firstorder_10Percentile.2',
+#     'wavelet-HHH_firstorder_InterquartileRange.2',
+#     'wavelet-HHH_ngtdm_Busyness.2'
+#
+# ]]
+#
+# X_train_pv = X_train_pv[[
+#     'wavelet-HLH_gldm_GrayLevelNonUniformity',
+#     'wavelet-HHH_gldm_HighGrayLevelEmphasis',
+#     'wavelet-HHH_gldm_LargeDependenceHighGrayLevelEmphasis',
+#     'wavelet-LHL_gldm_GrayLevelNonUniformity.1',
+#     'wavelet-HLH_firstorder_10Percentile.1',
+#     'wavelet-LLH_firstorder_Maximum.2',
+#     'wavelet-LHH_firstorder_Maximum.2',
+#     'wavelet-HLL_firstorder_Minimum.2',
+#     'wavelet-HLL_gldm_HighGrayLevelEmphasis.2',
+#     'wavelet-HLL_gldm_LargeDependenceEmphasis.2',
+#     'wavelet-HLL_gldm_SmallDependenceHighGrayLevelEmphasis.2',
+#     'wavelet-HLH_gldm_HighGrayLevelEmphasis.2',
+#     'wavelet-HHL_firstorder_Range.2',
+#     'wavelet-HHL_gldm_HighGrayLevelEmphasis.2',
+#     'wavelet-HHH_firstorder_90Percentile.2',
+#     'wavelet-HHH_firstorder_Minimum.2',
+#     'wavelet-HHH_gldm_LargeDependenceLowGrayLevelEmphasis.2',
+#     'wavelet-HHH_ngtdm_Busyness.2',
+#     'wavelet-LLL_gldm_LargeDependenceHighGrayLevelEmphasis.2'
+# ]]
+# X_test_pv = X_test_pv[[
+#     'wavelet-HLH_gldm_GrayLevelNonUniformity',
+#     'wavelet-HHH_gldm_HighGrayLevelEmphasis',
+#     'wavelet-HHH_gldm_LargeDependenceHighGrayLevelEmphasis',
+#     'wavelet-LHL_gldm_GrayLevelNonUniformity.1',
+#     'wavelet-HLH_firstorder_10Percentile.1',
+#     'wavelet-LLH_firstorder_Maximum.2',
+#     'wavelet-LHH_firstorder_Maximum.2',
+#     'wavelet-HLL_firstorder_Minimum.2',
+#     'wavelet-HLL_gldm_HighGrayLevelEmphasis.2',
+#     'wavelet-HLL_gldm_LargeDependenceEmphasis.2',
+#     'wavelet-HLL_gldm_SmallDependenceHighGrayLevelEmphasis.2',
+#     'wavelet-HLH_gldm_HighGrayLevelEmphasis.2',
+#     'wavelet-HHL_firstorder_Range.2',
+#     'wavelet-HHL_gldm_HighGrayLevelEmphasis.2',
+#     'wavelet-HHH_firstorder_90Percentile.2',
+#     'wavelet-HHH_firstorder_Minimum.2',
+#     'wavelet-HHH_gldm_LargeDependenceLowGrayLevelEmphasis.2',
+#     'wavelet-HHH_ngtdm_Busyness.2',
+#     'wavelet-LLL_gldm_LargeDependenceHighGrayLevelEmphasis.2'
+# ]]
+#
+# X_train_pv_sorted = X_train_pv[[
+#     'wavelet-HHH_gldm_HighGrayLevelEmphasis',
+#     'wavelet-HHH_gldm_LargeDependenceHighGrayLevelEmphasis',
+#     'wavelet-LLH_firstorder_Maximum.2',
+#     'wavelet-LHH_firstorder_Maximum.2',
+#     'wavelet-HLL_gldm_LargeDependenceEmphasis.2',
+#     'wavelet-HLH_gldm_HighGrayLevelEmphasis.2',
+#     'wavelet-HHL_firstorder_Range.2',
+#     'wavelet-HHH_ngtdm_Busyness.2',
+#     'wavelet-LLL_gldm_LargeDependenceHighGrayLevelEmphasis.2',
+#     'wavelet-HHH_firstorder_Minimum.2',
+# ]]
+# X_test_pv_sorted = X_test_pv[[
+#     'wavelet-HHH_gldm_HighGrayLevelEmphasis',
+#     'wavelet-HHH_gldm_LargeDependenceHighGrayLevelEmphasis',
+#     'wavelet-LLH_firstorder_Maximum.2',
+#     'wavelet-LHH_firstorder_Maximum.2',
+#     'wavelet-HLL_gldm_LargeDependenceEmphasis.2',
+#     'wavelet-HLH_gldm_HighGrayLevelEmphasis.2',
+#     'wavelet-HHL_firstorder_Range.2',
+#     'wavelet-HHH_ngtdm_Busyness.2',
+#     'wavelet-LLL_gldm_LargeDependenceHighGrayLevelEmphasis.2',
+#     'wavelet-HHH_firstorder_Minimum.2',
+# ]]
+#
+# scaler = StandardScaler()
+# scaler.fit(X_train)
+# X_train = scaler.transform(X_train)
+# X_test = scaler.transform(X_test)
+# scaler.fit(X_train_pv)
+# X_train_pv = scaler.transform(X_train_pv)
+# X_test_pv = scaler.transform(X_test_pv)
+# scaler.fit(X_train_pv_sorted)
+# X_train_pv_sorted = scaler.transform(X_train_pv_sorted)
+# X_test_pv_sorted = scaler.transform(X_test_pv_sorted)
+# constant_features = [feat for feat in X_train.columns if X_train[feat].std() == 0]
+# X_train.drop(labels=constant_features, axis=1, inplace=True)
+#
+# sel = VarianceThreshold(threshold=0.3)
+# sel.fit(X_train)
+# features_to_keep = X_train.columns[sel.get_support()]
+# X_train = sel.transform(X_train)
+# X_train = pd.DataFrame(X_train)
+# X_train.columns = features_to_keep
+# def correlation(dataset, threshold):
+#     col_corr = set()
+#     corr_matrix = dataset.corr()
+#     for i in range(len(corr_matrix.columns)):
+#         for j in range(i):
+#             if abs(corr_matrix.iloc[i, j]) > threshold:
+#                 colname = corr_matrix.columns[i]
+#                 col_corr.add(colname)
+#     return col_corr
+# corr_features = correlation(X_train, 0.95)
+# print('correlated features: ', len(set(corr_features)))
+# X_train.drop(labels=corr_features, axis=1, inplace=True)
+# X_indices = np.arange(X_train.shape[-1])
+# sel_ = SelectKBest(f_classif, k=20).fit(X_train, np.ravel(y_train))
+# features_to_keep = X_train.columns[sel_.get_support()]
+# # scores = -np.log10(sel_.pvalues_)
+# # scores /= scores.max()
+# # plt.bar(X_indices - .45, scores, width=.2,
+# #         label=r'Univariate score ($-Log(p_{value})$)')
+# # plt.show()
+# univariate = f_classif(X_train, y_train)
+# univariate = pd.Series(univariate[1])
+# univariate.index = X_train.columns
+# # univariate.sort_values(ascending=False).plot.bar(figsize=(20, 6))
+# # plt.show()
+# X_train_anova = sel_.transform(X_train)
+# X_train_anova = pd.DataFrame(X_train_anova)
+# X_train_anova.columns = features_to_keep
+#
+# scaler = StandardScaler()
+# train = scaler.fit_transform(X_train_anova)
+# #
+clf = RFECV(LogisticRegression(penalty='none'), cv=3, scoring="roc_auc", n_job=-1, )
+# clf.fit(train, np.ravel(y_train))
+# clf.show()
+
+# Modeling Features and Normalization
+X_train = X_train_pv[[
+
+        'wavelet-HHH_gldm_HighGrayLevelEmphasis',
+        'wavelet-HHH_gldm_LargeDependenceHighGrayLevelEmphasis',
+        'wavelet-LLH_firstorder_Maximum.2',
+        'wavelet-LHH_firstorder_Maximum.2',
+        'wavelet-HLL_gldm_LargeDependenceEmphasis.2',
+        'wavelet-HLH_gldm_HighGrayLevelEmphasis.2',
+        'wavelet-HHL_firstorder_Range.2',
+        'wavelet-HHH_ngtdm_Busyness.2',
+        'wavelet-LLL_gldm_LargeDependenceHighGrayLevelEmphasis.2',
+        'wavelet-HHH_firstorder_Minimum.2',
+]]
+X_train1 = X_train_pv[[
+
+        'wavelet-HHH_gldm_HighGrayLevelEmphasis',
+        'wavelet-HHH_gldm_LargeDependenceHighGrayLevelEmphasis',
+        'wavelet-LLH_firstorder_Maximum.2',
+        'wavelet-LHH_firstorder_Maximum.2',
+        'wavelet-HLL_gldm_LargeDependenceEmphasis.2',
+        'wavelet-HLH_gldm_HighGrayLevelEmphasis.2',
+        'wavelet-HHL_firstorder_Range.2',
+        'wavelet-HHH_ngtdm_Busyness.2',
+        'wavelet-LLL_gldm_LargeDependenceHighGrayLevelEmphasis.2',
+        'wavelet-HHH_firstorder_Minimum.2',
+         'HGB'
+]]
+X_test = X_test_pv[[
+
+    'wavelet-HHH_gldm_HighGrayLevelEmphasis',
+    'wavelet-HHH_gldm_LargeDependenceHighGrayLevelEmphasis',
+    'wavelet-LLH_firstorder_Maximum.2',
+    'wavelet-LHH_firstorder_Maximum.2',
+    'wavelet-HLL_gldm_LargeDependenceEmphasis.2',
+    'wavelet-HLH_gldm_HighGrayLevelEmphasis.2',
+    'wavelet-HHL_firstorder_Range.2',
+    'wavelet-HHH_ngtdm_Busyness.2',
+    'wavelet-LLL_gldm_LargeDependenceHighGrayLevelEmphasis.2',
+    'wavelet-HHH_firstorder_Minimum.2',
+]]
+X_test1 = X_test_pv[[
+
+        'wavelet-HHH_gldm_HighGrayLevelEmphasis',
+        'wavelet-HHH_gldm_LargeDependenceHighGrayLevelEmphasis',
+        'wavelet-LLH_firstorder_Maximum.2',
+        'wavelet-LHH_firstorder_Maximum.2',
+        'wavelet-HLL_gldm_LargeDependenceEmphasis.2',
+        'wavelet-HLH_gldm_HighGrayLevelEmphasis.2',
+        'wavelet-HHL_firstorder_Range.2',
+        'wavelet-HHH_ngtdm_Busyness.2',
+        'wavelet-LLL_gldm_LargeDependenceHighGrayLevelEmphasis.2',
+        'wavelet-HHH_firstorder_Minimum.2',
+         'HGB'
+]]
+scaler = StandardScaler()
+scaler.fit(X_train)
+X_train = scaler.transform(X_train)
+X_test = scaler.transform(X_test)
+# Feature importance
+# log_reg = sm.Logit(y_train, X_train).fit()
+# print(log_reg.summary())
+# Model Selection
+model1 = LogisticRegression(n_jobs=-1, max_iter=1000)
+model2 = LogisticRegression(n_jobs=-1, max_iter=1000)
+# Model Hyper-parameter Table
+gird = {
+    "penalty": ['l2', 'l1', 'none'],
+    "C": np.arange(0.1,10,0.1),
+    "fit_intercept": [True, False],
+    "calibration": [True],
+    "solver": ['newton-cg', 'sag',
+               'saga', 'lbsfg'],
+}
+clf = GridSearchCV(model1, gird, scoring='roc_auc', cv=3, n_jobs=-1)
+clf.fit(X_train, np.ravel(y_train_pv))
+param = clf.best_params_
+print(param)
+# Set the LR model with the best parameters
+model1.set_params(**param)
+clf.fit(X_train1, np.ravel(y_train_pv))
+model2.set_params(**param)
+# Model Fit
+model1.fit(X_train, np.ravel(y_train_pv))
+model2.fit(X_train1, np.ravel(y_train_pv))
+
+fig, ax = plt.subplots()
+
+
+plt.show()
+
+
+# filename = r"A:\FYP\MOdel\pv_sorted_model.sav"
+# pickle.dump(model1, open(filename, 'wb'))
+
+# Model Performance testing
+pred2 = model1.predict_proba(X_train)[: ,1]
+pred3 = model2.predict_proba(X_train1)[: ,1]
+pred4 = model1.predict_proba(X_test)[: ,1]
+pred5 = model2.predict_proba(X_test1)[: ,1]
+tp, fp, th = roc_curve(y_train_pv, pred2)
+tp1, fp1, th1 = roc_curve(y_train_pv, pred3)
+tp2, fp2, th2 = roc_curve(y_test_pv, pred4)
+tp3, fp3, th3 = roc_curve(y_test_pv, pred5)
+plt.figure()
+plt.plot(tp,fp, label= "PV Train")
+plt.plot(tp1,fp1, label= "PV+HGB Train")
+plt.plot(tp2,fp2, label= "PV Test")
+plt.plot(tp3,fp3, label= "PV+HGB Test")
+plt.legend()
+plt.show()
+# # print(classification_report(np.ravel(y_test), pred2))
+# print(roc_auc_score(np.ravel(y_train_pv), pred2))
+
+# Confusion Matrixs
+# cm = confusion_matrix(y_train_pv, pred2)
+# ax = sns.heatmap(cm, annot=True, cmap='Blues')
+# ax.set_title('Confusion Matrix');
+# ax.set_xlabel('\nPredicted Values')
+# ax.set_ylabel('Actual Values ');
+# ax.xaxis.set_ticklabels(['False', 'True'])
+# ax.yaxis.set_ticklabels(['False', 'True'])
+# plt.show()
+# plt.close()
+# a = r"A:\FYP\MOdel\ap_model.sav"
+# b = r"A:\FYP\MOdel\pv_model.sav"
+# c = r"A:\FYP\MOdel\pv_sorted_model.sav"
+# ap = pickle.load(open(a, 'rb'))
+# pv = pickle.load(open(b, 'rb'))
+# pv_sorted = pickle.load(open(c, 'rb'))
+#
+# # ROC curve
+# t1 = ap.predict_proba(X_train)[:, 1]
+# t2 = pv.predict_proba(X_train_pv)[:, 1]
+# t3 = pv_sorted.predict_proba(X_train_pv_sorted)[:, 1]
+#
+# pred1 = ap.predict_proba(X_test)[:, 1]
+# pred2 = pv.predict_proba(X_test_pv)[:, 1]
+# pred3 = pv_sorted.predict_proba(X_test_pv_sorted)[:, 1]
+#
+#
+
+# tp, fp, thre = roc_curve(y_train, t1)
+# tpr, fpr, thres = roc_curve(y_test, pred1)
+# tp1, fp1, thre1 = roc_curve(y_train_pv, t2)
+# tpr1, fpr1, thres1 = roc_curve(y_test_pv, pred2)
+# tp2, fp2, thre2 = roc_curve(y_train_pv, t3)
+# tpr2, fpr2, thres2 = roc_curve(y_test_pv, pred3)
+# plt.figure()
+# plt.plot(tpr, fpr, label='AP Features testing')
+# plt.plot(tp, fp, label='AP  Features training')
+# plt.plot(tpr1, fpr1, label='PV Features testing')
+# plt.plot(tp1, fp1, label='PV Features training')
+# plt.plot(tpr2, fpr2, label='PV sorted Features testing')
+# plt.plot(tp2, fp2, label='PV sorted Features training')
+# plt.plot([0, 1], [0, 1])
+# plt.legend()
+# plt.show()
+# plt.close()
+# # Figure Plot
+# def _TP_FP(true, pred):
+#     confusion_matrix_array = confusion_matrix(true, pred)
+#     FP = confusion_matrix_array.sum(axis=0) - np.diag(confusion_matrix_array)
+#     TP = np.diag(confusion_matrix_array)
+#     return TP[0], FP[0]
+# def perf_measure(true, pred):
+#     TP = 0
+#     FP = 0
+#     prediction = pred * 1
+#     for i in range(len(prediction)):
+#         if true[i] == prediction[i] == 1:
+#             TP += 1
+#         if prediction[i] and true[i] != prediction[i]:
+#             FP += 1
+#     return TP, FP
+# def net_benefit_curve(feature_testing, label_testing, calibrated_model, name):
+#     proba = calibrated_model.predict_proba(feature_testing)[:, 1]
+#     label_testing = np.array(label_testing).flatten()
+#     N = len(label_testing)
+#     constant_TP = label_testing.sum()
+#     const_FP = N - constant_TP
+#     assert len(proba == len(label_testing))
+#     risk_thresholds = np.arange(0, 100, 1) / 100
+#     NB_list = []
+#     NB_All_list = []
+#     for thre in risk_thresholds:
+#         pred = proba > thre
+#         true = label_testing
+#         TP, FP = perf_measure(true, pred)
+#         odds = thre / (1 - thre)
+#         net_benefit = TP / N - FP * odds / N
+#         NB_list.append(net_benefit)
+#         NB_All_list.append(constant_TP / N - const_FP * odds / N)
+#     figure, ax = plt.subplots()
+#     plt.title("Decision Analysis Curve")
+#     ax.plot(risk_thresholds, np.array(NB_list), label=name)
+#     ax.plot(risk_thresholds, np.array(NB_All_list), label="No Selection (All)")
+#     ax.axhline(y=0, linestyle='-')
+#     plt.xlabel("Threshold Probability")
+#     plt.ylabel("Net Benefit")
+#     plt.legend()
+#     plt.ylim((-0.2, 0.8))
+#     plt.show()
+#     return risk_thresholds, np.array(NB_list), risk_thresholds, NB_All_list
+# a1, b1,c1,d1 = net_benefit_curve(X_test, y_test, ap, "Acute Phase Features")
+# a2, b2,c2,d2 = net_benefit_curve(X_test_pv, y_test_pv, pv, "Portal Venous Phase Features")
+# a3, b3,c3,d3 = net_benefit_curve(X_test_pv_sorted, y_test_pv, pv_sorted, "Sorted Portal Venous Phase Features")
+# plt.figure()
+# plt.plot(c1,np.array(d1), label= "Treat All Patients")
+# plt.plot(a1, b1, label= "Acute Phase Features")
+# plt.plot(a2, b2, label= "Portal Venous Phase Features")
+# plt.plot(a3, b3, label= "Sorted Portal Venous Phase Features")
+# plt.ylim(-0.2, 0.8)
+# plt.axhline(y=0, linestyle='-', label="Treat None Patients")
+# plt.xlabel("threshold Probability")
+# plt.ylabel("Net Benefit")
+# plt.legend()
+# plt.show()
+#
+#
+# def calibrated(X_train, y_train, X_test, classifier):
+#     calibrated = CalibratedClassifierCV(base_estimator=classifier, cv="prefit", n_jobs=-1, method='sigmoid')
+#     calibrated.fit(X_train, y_train)
+#     return calibrated.predict_proba(X_test)[:, 1], calibrated
+#
+# omics_cali, omics_cali_model = calibrated(X_train, y_train, X_test, ap)
+# omics_true, omics_cali_pred = calibration_curve(y_test, omics_cali, n_bins=3)
+# omics_score = brier_score_loss(y_test, omics_cali)
+# omics_cali1, omics_cali_model1 = calibrated(X_train_pv, y_train_pv, X_test_pv, pv)
+# omics_true1, omics_cali_pred1 = calibration_curve(y_test_pv, omics_cali1, n_bins=3)
+# omics_score1 = brier_score_loss(y_test_pv, omics_cali1)
+# omics_cali2, omics_cali_model2 = calibrated(X_train_pv_sorted, y_train_pv, X_test_pv_sorted, pv_sorted)
+# omics_true2, omics_cali_pred2 = calibration_curve(y_test_pv, omics_cali2, n_bins=3)
+# omics_score2 = brier_score_loss(y_test_pv, omics_cali2)
+#
+# plt.plot([0, 1], [0, 1], 'k--')
+# plt.plot(omics_cali_pred, omics_true, label="Acute Phase Features" + str("{:.2f}".format(omics_score)))
+# plt.plot(omics_cali_pred1, omics_true1, label="Portal Venous Phase Features" + str("{:.2f}".format(omics_score1)))
+# plt.plot(omics_cali_pred2, omics_true2, label="Sorted Portal Venous Phase Features" + str("{:.2f}".format(omics_score2)))
+# plt.legend()
+# plt.xlabel("Mean predicted probability")
+# plt.ylabel("Fraction of positives")
+# plt.title("Post-calibration plots")
+# plt.show()
+# plt.close()
